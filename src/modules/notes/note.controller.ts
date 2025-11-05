@@ -7,22 +7,43 @@ import { IsNull } from 'typeorm';
 const noteController = Router();
 const noteRepository = datasource.getRepository(Note);
 
-// ノート一覧取得
+// ノート一覧取得・検索
 noteController.get('/', Auth, async (req: Request, res: Response) => {
   try {
     const userId = req.currentUser!.id;
     const parentIdParam = req.query.parentId as string | undefined;
+    const keyword = req.query.keyword as string | undefined;
 
     let notes;
-    if (parentIdParam !== undefined) {
-      // クエリパラメータで parentId が指定された場合
+
+    // Case 1: keyword あり → 全文検索
+    if (keyword) {
+      const queryBuilder = noteRepository
+        .createQueryBuilder('note')
+        .where('note.userId = :userId', { userId })
+        .andWhere(
+          '(LOWER(note.title) LIKE :keyword OR LOWER(note.content) LIKE :keyword)',
+          { keyword: `%${keyword.toLowerCase()}%` }
+        );
+
+      // parentId が指定されている場合はさらにフィルタ
+      if (parentIdParam !== undefined) {
+        const parentId = parseInt(parentIdParam);
+        queryBuilder.andWhere('note.parentId = :parentId', { parentId });
+      }
+
+      notes = await queryBuilder.orderBy('note.createdAt', 'DESC').getMany();
+    }
+    // Case 2: parentId あり → 子ノート取得
+    else if (parentIdParam !== undefined) {
       const parentId = parseInt(parentIdParam);
       notes = await noteRepository.find({
         where: { userId, parentId },
         order: { createdAt: 'DESC' },
       });
-    } else {
-      // parentId 未指定の場合はルートノート（parentId = null）のみ
+    }
+    // Case 3: 両方なし → ルートノート取得
+    else {
       notes = await noteRepository.find({
         where: { userId, parentId: IsNull() },
         order: { createdAt: 'DESC' },
