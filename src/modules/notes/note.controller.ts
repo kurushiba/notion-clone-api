@@ -90,5 +90,70 @@ noteController.post('/', Auth, async (req: Request, res: Response) => {
   }
 });
 
+// ノート更新
+noteController.patch('/:id', Auth, async (req: Request, res: Response) => {
+  try {
+    const userId = req.currentUser!.id;
+    const noteId = parseInt(req.params.id);
+    const { title, content } = req.body;
+
+    // ノート存在確認と所有者チェック
+    const note = await noteRepository.findOne({
+      where: { id: noteId, userId },
+    });
+
+    if (!note) {
+      res.status(404).json({ message: 'ノートが見つかりません' });
+      return;
+    }
+
+    // 更新データの準備
+    const updateData: any = {};
+    if (title !== undefined) updateData.title = title;
+    if (content !== undefined) updateData.content = content;
+
+    // 更新
+    await noteRepository.update({ id: noteId }, updateData);
+
+    // 更新後のノートを取得
+    const updatedNote = await noteRepository.findOne({
+      where: { id: noteId },
+    });
+
+    res.status(200).json(updatedNote);
+  } catch (error) {
+    console.error('ノート更新エラー:', error);
+    res.status(500).json({ message: 'サーバーエラーが発生しました' });
+  }
+});
+
+// ノート削除
+noteController.delete('/:id', Auth, async (req: Request, res: Response) => {
+  try {
+    const userId = req.currentUser!.id;
+    const noteId = parseInt(req.params.id);
+
+    // ノート存在確認と所有者チェック
+    const note = await noteRepository.findOne({
+      where: { id: noteId, userId },
+    });
+
+    if (!note) {
+      res.status(404).json({ message: 'ノートが見つかりません' });
+      return;
+    }
+
+    // 削除 (CASCADE により子ノートも自動削除)
+    await noteRepository.delete({ id: noteId });
+
+    res.status(200).json({
+      message: 'ノートを削除しました',
+    });
+  } catch (error) {
+    console.error('ノート削除エラー:', error);
+    res.status(500).json({ message: 'サーバーエラーが発生しました' });
+  }
+});
+
 export default noteController;
 
