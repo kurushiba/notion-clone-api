@@ -4,8 +4,10 @@ import {
   Column,
   CreateDateColumn,
   UpdateDateColumn,
+  OneToMany,
   Index,
 } from 'typeorm';
+import { Note } from '../notes/note.entity';
 
 @Entity()
 export class User {
@@ -21,6 +23,9 @@ export class User {
 
   @Column()
   password: string;
+
+  @OneToMany(() => Note, (note) => note.user)
+  notes: Note[];
 
   @CreateDateColumn()
   createdAt: Date;
