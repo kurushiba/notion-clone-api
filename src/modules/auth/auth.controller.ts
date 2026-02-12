@@ -45,6 +45,7 @@ authController.post('/signup', async (req: Request, res: Response) => {
     // パスワードを除外してレスポンスを返す
     res.status(200).json({
       user: {
+        ...user,
         password: undefined,
       },
       token,
